@@ -63,7 +63,7 @@ function addCustomSport(){const input=$('customSportInput'),name=input.value.tri
 function ensureSports(){const sports=selectedSports();if(!sports.length){toast('请至少选择一种喜欢的运动');$('sportChoices').scrollIntoView({behavior:'smooth',block:'center'});return null}return sports}
 
 
-const key='stride_fit_v1',today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Singapore'});const initial=()=>({plans:{},logs:{},weights:[],nickname:''});let data;try{data={...initial(),...JSON.parse(localStorage.getItem(key)||'{}')}}catch{data=initial()}let picked=today(),view=new Date(picked+'T12:00:00'),pending=[];const $=id=>document.getElementById(id),save=()=>{localStorage.setItem(key,JSON.stringify(data));render()},fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'}),iso=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'),add=(date,n)=>{let d=new Date(date+'T12:00:00');d.setDate(d.getDate()+n);return iso(d)},startWeek=d=>{let x=new Date(d+'T12:00:00');x.setDate(x.getDate()-(x.getDay()+6)%7);return iso(x)};function toast(t){$('toast').textContent=t;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2600)}function nav(p){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===p));document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===p));render();scrollTo(0,0)}document.querySelectorAll('#nav button').forEach(x=>x.onclick=()=>nav(x.dataset.page));function openDay(d){picked=d;view=new Date(d+'T12:00:00');nav('calendar');setTimeout(()=>document.querySelector('.day-detail')?.scrollIntoView({behavior:'smooth',block:'start'}),90)}function moveMonth(n){view=new Date(view.getFullYear(),view.getMonth()+n,1);picked=iso(view);render()}
+const key='stride_fit_v1',today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Singapore'});const initial=()=>({plans:{},logs:{},weights:[],nickname:''});let data;try{data={...initial(),...JSON.parse(localStorage.getItem(key)||'{}')}}catch{data=initial()}let picked=today(),view=new Date(picked+'T12:00:00'),pending=[];const $=id=>document.getElementById(id),save=()=>{localStorage.setItem(key,JSON.stringify(data));localStorage.setItem('stride_sync_dirty_v1','1');render();queueFitnessSync()},fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'}),iso=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'),add=(date,n)=>{let d=new Date(date+'T12:00:00');d.setDate(d.getDate()+n);return iso(d)},startWeek=d=>{let x=new Date(d+'T12:00:00');x.setDate(x.getDate()-(x.getDay()+6)%7);return iso(x)};function toast(t){$('toast').textContent=t;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2600)}function nav(p){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===p));document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===p));render();scrollTo(0,0)}document.querySelectorAll('#nav button').forEach(x=>x.onclick=()=>nav(x.dataset.page));function openDay(d){picked=d;view=new Date(d+'T12:00:00');nav('calendar');setTimeout(()=>document.querySelector('.day-detail')?.scrollIntoView({behavior:'smooth',block:'start'}),90)}function moveMonth(n){view=new Date(view.getFullYear(),view.getMonth()+n,1);picked=iso(view);render()}
 function populateDayTypes(current){
  const select=$('daytype'),existing=new Set([...STRIDE_SPORT_DEFAULTS,...sportPreferences.custom,...Object.values(data.plans).map(p=>p?.type).filter(Boolean),'其他运动','休息']);
  const previous=select.value;
@@ -88,7 +88,7 @@ function generatePlan(){
 }
 function applyPlan(){if(!pending.length)return;let conflicts=pending.some(p=>data.plans[p.date]);if(conflicts&&!confirm('这些日期已有部分计划，确认覆盖计划内容？已有打卡记录不会删除。'))return;pending.forEach(p=>data.plans[p.date]={type:p.type,minutes:p.minutes,note:p.note});pending=[];$('planpreview').classList.add('hide');save();toast('训练计划已写入日历');nav('calendar')}
 function addWeight(){let date=$('weightdate').value,val=Number($('weightvalue').value);if(!date||!Number.isFinite(val)||val<20||val>350)return toast('请输入有效日期和体重');data.weights=data.weights.filter(x=>x.date!==date);data.weights.push({date,kg:val});data.weights.sort((a,b)=>a.date.localeCompare(b.date));$('weightvalue').value='';save();toast('体重已记录')}function renderStats(){let logs=Object.values(data.logs).filter(l=>l.status==='done'),weights=data.weights;$('totaldone').textContent=logs.length;$('totalminutes').textContent=logs.reduce((a,l)=>a+l.minutes,0);$('latestweight').textContent=weights.length?weights.at(-1).kg+' kg':'—';$('weightlist').innerHTML=weights.slice(-8).reverse().map(w=>'<div class="rowitem"><span>'+w.date+'</span><span>'+w.kg+' kg <button class="btn danger" data-weight="'+w.date+'" style="padding:5px 8px">删除</button></span></div>').join('')||'<p class="muted">暂无体重记录。每周记录一次即可。</p>';document.querySelectorAll('[data-weight]').forEach(b=>b.onclick=()=>{data.weights=data.weights.filter(x=>x.date!==b.dataset.weight);save()});let points=weights.slice(-10),svg=$('weightchart');if(points.length<2){svg.innerHTML='<text x="160" y="95" text-anchor="middle" fill="#99a89f" font-size="12">至少记录两次体重后显示曲线</text>'}else{let values=points.map(x=>x.kg),min=Math.min(...values)-.5,max=Math.max(...values)+.5,coords=points.map((x,i)=>[25+i*270/(points.length-1),145-(x.kg-min)/(max-min)*110]);svg.innerHTML='<path d="M 25 145 H 300" stroke="#dee9de" fill="none"/><polyline points="'+coords.map(x=>x.join(',')).join(' ')+'" stroke="#4a9c73" fill="none" stroke-width="3"/>'+coords.map((x,i)=>'<circle cx="'+x[0]+'" cy="'+x[1]+'" r="4" fill="#4a9c73"/><text x="'+x[0]+'" y="'+(x[1]-11)+'" text-anchor="middle" fill="#607a69" font-size="10">'+points[i].kg+'</text>').join('')}}function renderReport(){let w=weekData(),rate=w.planned.length?Math.round(w.donePlans.length/w.planned.length*100):null,weights=data.weights.filter(x=>x.date>=w.start&&x.date<=w.end);$('report').innerHTML='<p><b>'+w.start+' 至 '+w.end+'</b></p><p>本周完成 <b>'+w.entries.length+'</b> 次训练，共 <b>'+w.minutes+'</b> 分钟。'+(rate===null?'本周尚无安排的训练计划。':'计划训练完成率为 <b>'+rate+'%</b>。')+'</p><p>'+ (w.planned.length===0?'建议先规划符合实际时间的一周训练。':rate>=80?'计划执行情况较好，可以继续维持当前节奏。':rate>=50?'可以适当降低单次训练难度，优先培养稳定习惯。':'建议先减少每周训练天数，选择更容易坚持的运动。')+'</p><p class="muted">'+(weights.length?'本周有 '+weights.length+' 条体重记录，建议结合长期趋势观察。':'本周没有体重记录；体重为可选指标，不影响运动打卡。')+'</p>'}
-function render(){renderHome();renderCalendar();renderStats();renderReport();$('nickname').value=data.nickname||''}function saveSettings(){data.nickname=$('nickname').value.trim();save();toast('设置已保存')}function exportData(){let blob=new Blob([JSON.stringify({app:'Stride',version:1,exportedAt:new Date().toISOString(),data},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='stride-backup-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}$('fileinput').onchange=async e=>{try{let x=JSON.parse(await e.target.files[0].text());if(x.app!=='Stride'||!x.data||typeof x.data.plans!=='object'||typeof x.data.logs!=='object'||!Array.isArray(x.data.weights))throw Error('格式错误');if(!confirm('导入将覆盖当前浏览器记录，确定吗？'))return;data={...initial(),...x.data};save();toast('导入成功')}catch(err){toast('导入失败：'+err.message)}finally{e.target.value=''}};function resetData(){if(!confirm('确定清空此浏览器全部记录？此操作无法撤销。'))return;data=initial();save();toast('已清空')}$('weightdate').value=today();render();
+function render(){renderHome();renderCalendar();renderStats();renderReport();$('nickname').value=data.nickname||''}function saveSettings(){data.nickname=$('nickname').value.trim();save();toast('设置已保存')}function exportData(){let blob=new Blob([JSON.stringify({app:'Stride',version:1,exportedAt:new Date().toISOString(),data},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='stride-backup-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}$('fileinput').onchange=async e=>{try{let x=JSON.parse(await e.target.files[0].text());if(x.app!=='Stride'||!x.data||typeof x.data.plans!=='object'||typeof x.data.logs!=='object'||!Array.isArray(x.data.weights))throw Error('格式错误');if(!confirm('导入将覆盖当前浏览器记录，确定吗？'))return;data={...initial(),...x.data};save();toast('导入成功')}catch(err){toast('导入失败：'+err.message)}finally{e.target.value=''}};function resetData(){if(!confirm('清空本机记录并断开云端同步？私库备份不会被删除。此操作无法撤销本机数据。'))return;syncEnabled=false;localStorage.removeItem('stride_sync_enabled_v1');localStorage.removeItem('stride_sync_sha_v1');localStorage.removeItem('stride_sync_dirty_v1');data=initial();localStorage.setItem(key,JSON.stringify(data));render();updateSyncUI('idle','本机记录已清空','私库记录没有被删除。需要恢复时请重新连接。');toast('已清空本机记录，云端保留')}$('weightdate').value=today();render();
 
 /* Visual analytics: computed entirely from recorded data, no fabricated samples */
 let statsRange='7';
@@ -227,3 +227,122 @@ window.addEventListener('pageshow',()=>setTimeout(checkStrideUpdates,1200));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkStrideUpdates()});
 window.addEventListener('online',checkStrideUpdates);
 setInterval(()=>{if(document.visibilityState==='visible')checkStrideUpdates()},15*60*1000);
+
+
+/* Private GitHub synchronization: opt-in initial import, subsequent queued auto saves.
+   Existing stride_fit_v1 data is unchanged and never silently discarded. */
+let syncEnabled=localStorage.getItem('stride_sync_enabled_v1')==='1';
+let syncSha=localStorage.getItem('stride_sync_sha_v1')||'';
+let syncBusy=false,syncTimer=null,syncError=false;
+function syncHasData(v){return Boolean(Object.keys(v?.plans||{}).length||Object.keys(v?.logs||{}).length||(v?.weights||[]).length||v?.nickname)}
+function updateSyncUI(level,title,detail){
+ const dot=$('syncDot'),label=$('syncState'),description=$('syncDetail');
+ if(label)label.textContent=title;
+ if(description)description.textContent=detail||'';
+ if(dot)dot.dataset.state=level;
+ const time=$('syncTime');if(time)time.textContent=level==='ok'?'最近同步：'+new Date().toLocaleString('zh-CN',{hour:'2-digit',minute:'2-digit'}):level==='syncing'?'正在同步…':syncEnabled?'同步已开启':'尚未开启';
+}
+async function syncRequest(path,payload){
+ const pass=aiPass();
+ if(!pass)throw Error('请在设置中保存 STRIDE_ACCESS_SECRET 访问口令');
+ const response=await fetch(STRIDE_AI_ENDPOINT+path,{method:'POST',headers:{'Content-Type':'application/json','x-stride-passphrase':pass},body:JSON.stringify(payload||{}),cache:'no-store'});
+ const result=await response.json();
+ if(!response.ok){const error=new Error(result.error||'请求失败');error.code=result.code||'';error.sha=result.sha||'';error.cloud=result.cloud||null;throw error}
+ return result;
+}
+function acceptCloudFitness(snapshot,sha){
+ if(!snapshot||!snapshot.plans||!snapshot.logs||!Array.isArray(snapshot.weights))throw Error('私库记录格式不正确');
+ data={...initial(),...snapshot};
+ localStorage.setItem(key,JSON.stringify(data));
+ syncSha=sha;localStorage.setItem('stride_sync_sha_v1',sha);
+ localStorage.removeItem('stride_sync_dirty_v1');
+ render();
+}
+function setSyncEnabled(yes){
+ syncEnabled=yes;
+ if(yes)localStorage.setItem('stride_sync_enabled_v1','1');
+ else localStorage.removeItem('stride_sync_enabled_v1');
+}
+async function connectFitnessSync(){
+ if(syncBusy)return;
+ syncBusy=true;updateSyncUI('syncing','正在连接私库','读取 GitHub 私库版本与现有记录…');
+ try{
+  const remote=await syncRequest('/sync/read',{});
+  const cloud=remote.document?.data,sha=remote.sha;
+  if(!cloud||!sha)throw Error('云端没有有效的 fitness.json');
+  const dirty=localStorage.getItem('stride_sync_dirty_v1')==='1';
+  const localHas=syncHasData(data),cloudHas=syncHasData(cloud);
+  // First connection: user explicitly chooses direction for a nonempty local set.
+  if(!syncSha){
+   if(localHas&&cloudHas){
+    if(!confirm('本机和私库都有训练记录。\n\n选择「确定」：使用私库数据替换本机（不会修改私库）。\n选择「取消」：先不连接。你可以导出本机备份再决定。')){updateSyncUI('warning','等待选择同步方向','两端都有数据。先导出本机备份后再选择导入或上传。');return}
+    acceptCloudFitness(cloud,sha);
+   }else if(cloudHas){
+    if(!confirm('检测到私库中有训练记录，要将其恢复到本机吗？')){updateSyncUI('warning','尚未连接','未修改本机数据');return}
+    acceptCloudFitness(cloud,sha);
+   }else if(localHas){
+    if(!confirm('私库当前没有训练记录。是否把本机现有记录首次上传到私库？')){updateSyncUI('warning','尚未首次上传','当前本机记录保持不变');return}
+    syncSha=sha;localStorage.setItem('stride_sync_sha_v1',sha);
+    localStorage.setItem('stride_sync_dirty_v1','1');
+   }else{syncSha=sha;localStorage.setItem('stride_sync_sha_v1',sha);localStorage.removeItem('stride_sync_dirty_v1')}
+  }else if(syncSha!==sha){
+   if(dirty){setSyncEnabled(false);syncError=true;updateSyncUI('warning','发现数据冲突','本机有未上传修改，私库也发生变化。请先导出本机备份，再手动决定保留哪边；系统不会自动覆盖。');return}
+   acceptCloudFitness(cloud,sha);
+  }else if(!dirty&&!localHas&&cloudHas){acceptCloudFitness(cloud,sha)}
+  setSyncEnabled(true);syncError=false;
+  updateSyncUI('ok','已连接 GitHub 私库','连接成功。今后本机训练记录修改将自动提交到私库。');
+ }catch(e){syncError=true;updateSyncUI('error','私库连接失败',e.message)}
+ finally{syncBusy=false}
+ if(syncEnabled&&localStorage.getItem('stride_sync_dirty_v1')==='1')queueFitnessSync(true);
+}
+function queueFitnessSync(now=false){
+ if(!syncEnabled||syncError||!aiPass())return;
+ clearTimeout(syncTimer);
+ syncTimer=setTimeout(()=>void uploadFitnessSync(),now?80:1300);
+}
+async function uploadFitnessSync(){
+ if(!syncEnabled||syncError||syncBusy||!aiPass()||!navigator.onLine)return;
+ if(localStorage.getItem('stride_sync_dirty_v1')!=='1')return;
+ if(!syncSha){updateSyncUI('warning','需要建立同步','请先点击连接 / 检查云端');return}
+ syncBusy=true;updateSyncUI('syncing','正在上传到私库','已在本机保存，正在上传 GitHub…');
+ const snapshot=JSON.stringify(data);
+ try{
+  const result=await syncRequest('/sync/write',{sha:syncSha,data:JSON.parse(snapshot)});
+  if(!result.sha)throw Error('私库未返回成功版本');
+  syncSha=result.sha;localStorage.setItem('stride_sync_sha_v1',syncSha);
+  if(JSON.stringify(data)===snapshot){
+   localStorage.removeItem('stride_sync_dirty_v1');
+   updateSyncUI('ok','已同步到 GitHub 私库','已成功提交；云端版本 '+result.revision+'。');
+  }else{updateSyncUI('syncing','还有本机修改待上传','上一次已提交，将继续上传最新修改');}
+  syncError=false;
+ }catch(e){
+  syncError=true;
+  updateSyncUI(e.code==='CONFLICT'?'warning':'error',e.code==='CONFLICT'?'同步冲突，已停止覆盖':'同步失败，数据仍在本机',e.message+'。请检查连接并手动重新同步。');
+ }finally{syncBusy=false}
+ if(syncEnabled&&!syncError&&localStorage.getItem('stride_sync_dirty_v1')==='1')queueFitnessSync(true);
+}
+async function syncFitnessNow(){
+ if(syncBusy)return;
+ if(!syncEnabled||!syncSha){await connectFitnessSync();return}
+ if(syncError){syncError=false;await connectFitnessSync();return}
+ if(localStorage.getItem('stride_sync_dirty_v1')==='1'){queueFitnessSync(true);return}
+ await connectFitnessSync();
+}
+async function restoreFitnessCloud(){
+ if(syncBusy)return;
+ if(!confirm('从 GitHub 私库恢复将替换当前手机中的训练计划、打卡与体重记录。建议先点击「导出 JSON 备份」。继续吗？'))return;
+ syncBusy=true;updateSyncUI('syncing','正在恢复云端数据','读取 GitHub 私库备份…');
+ try{
+  const remote=await syncRequest('/sync/read',{});
+  if(!remote.document?.data)throw Error('私库记录无效');
+  acceptCloudFitness(remote.document.data,remote.sha);
+  setSyncEnabled(true);syncError=false;
+  updateSyncUI('ok','已从私库恢复','当前手机的数据已替换为私库最新版本。');
+ }catch(e){updateSyncUI('error','恢复失败',e.message)}
+ finally{syncBusy=false}
+}
+window.addEventListener('online',()=>{if(syncEnabled){syncError=false;syncFitnessNow()}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&syncEnabled&&!syncBusy){syncError=false;syncFitnessNow()}});
+window.addEventListener('pageshow',()=>{if(syncEnabled&&aiPass())setTimeout(()=>void syncFitnessNow(),1600)});
+if(syncEnabled){updateSyncUI('warning','等待检查私库','将检查 GitHub 最新记录；若有冲突不会自动覆盖。')}
+else{updateSyncUI('idle','尚未连接私库','请先配置 STRIDE_GITHUB_TOKEN，然后点击「连接 / 检查云端」。')}
