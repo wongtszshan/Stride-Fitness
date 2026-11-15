@@ -147,3 +147,17 @@ header{background:#fff}.brand-mark{width:34px;height:34px;border-radius:11px}.br
 #planner input[type=hidden]#planStart{display:none}
 @media(max-width:700px){#planner .date-selects{gap:6px}#planner .date-selects select{font-size:16px;padding:8px 7px}}
 @media(max-width:350px){#planner .date-selects{gap:4px}#planner .date-selects select{padding-inline:5px}}
+
+/* Private sync — compact status with no overflow on iPhone */
+#syncPanel{min-width:0}#syncPanel>.muted{line-height:1.7;overflow-wrap:anywhere}
+.sync-status-line{display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap;background:#f5faf6;border:1px solid #e1eee4;border-radius:14px;padding:13px 15px;margin:15px 0 6px}
+.sync-status-line strong{font-size:13px;color:#365c47;min-width:0}
+.sync-status-line .sync-sub{font-size:11px;color:#819989;margin-left:auto;overflow-wrap:anywhere}
+.sync-dot{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#b1c0b5}
+.sync-dot[data-state=ok]{background:#37a271;box-shadow:0 0 0 4px #d9f1e1}
+.sync-dot[data-state=syncing]{background:#e5ad50;box-shadow:0 0 0 4px #fff3d9}
+.sync-dot[data-state=error],.sync-dot[data-state=warning]{background:#d98b57;box-shadow:0 0 0 4px #ffeddc}
+.sync-detail{font-size:12px;color:#73897a;line-height:1.7;margin:4px 0 14px;overflow-wrap:anywhere}
+.sync-actions{display:flex;flex-wrap:wrap;gap:9px;align-items:stretch}
+.sync-actions button{flex:1 1 145px;min-width:0;white-space:normal;font-size:12px;line-height:1.5;min-height:43px}
+@media(max-width:700px){.sync-status-line{padding:12px;gap:9px}.sync-status-line .sync-sub{flex-basis:100%;margin-left:19px}.sync-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.sync-actions button:first-child{grid-column:1/-1}.sync-actions button{font-size:12px}}
