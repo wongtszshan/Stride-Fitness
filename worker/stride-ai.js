@@ -7,9 +7,10 @@ export default {async fetch(request,env){
  const url=new URL(request.url);if(request.method==="OPTIONS")return new Response(null,{status:204,headers});
  if(request.headers.get("Origin")&&request.headers.get("Origin")!==origin)return reply({error:"Origin not permitted"},403);
  if(url.pathname==="/health"&&request.method==="GET")return reply({ok:true,providers:{kimi:{configured:Boolean(env.KIMI_API_KEY&&env.STRIDE_ACCESS_SECRET),model:env.KIMI_MODEL||"kimi-k2.5"},claude:{configured:Boolean(env.CLAUDE_API_KEY&&env.STRIDE_ACCESS_SECRET),model:env.CLAUDE_MODEL||"claude-sonnet-4-6"}}});
- if(url.pathname!=="/ai"||request.method!=="POST")return reply({error:"Not found"},404);
+ if(!["/ai","/auth"].includes(url.pathname)||request.method!=="POST")return reply({error:"Not found"},404);
  if(!env.STRIDE_ACCESS_SECRET)return reply({error:"AI 未配置访问口令 STRIDE_ACCESS_SECRET"},503);
  if(request.headers.get("x-stride-passphrase")!==env.STRIDE_ACCESS_SECRET)return reply({error:"访问口令不正确"},401);
+ if(url.pathname==="/auth")return reply({ok:true,providers:{kimi:Boolean(env.KIMI_API_KEY),claude:Boolean(env.CLAUDE_API_KEY)}});
  if(Number(request.headers.get("content-length"))>45000)return reply({error:"Payload too large"},413);
  let body;try{body=await request.json()}catch{return reply({error:"JSON 无效"},400)}
  const task=body?.task,provider=body?.provider||"kimi";if(!["plan","summary"].includes(task))return reply({error:"Unsupported task"},400);if(!["kimi","claude"].includes(provider))return reply({error:"不支持的 AI 服务商"},400);if(provider==="kimi"&&!env.KIMI_API_KEY)return reply({error:"Kimi 尚未配置 KIMI_API_KEY；可以在设置中选择已配置的 Claude"},503);if(provider==="claude"&&!env.CLAUDE_API_KEY)return reply({error:"Claude 尚未配置 CLAUDE_API_KEY；可以在设置中选择已配置的 Kimi"},503);
