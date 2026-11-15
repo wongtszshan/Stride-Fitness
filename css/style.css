@@ -78,3 +78,5 @@ header{background:#fff}.brand-mark{width:34px;height:34px;border-radius:11px}.br
 
 /* Hero has no generated ornamental glyph at any viewport width. */
 .hero::before,.hero:before{content:none!important;display:none!important}
+
+.update-banner{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom));z-index:90;max-width:min(94vw,520px);width:calc(100% - 32px);padding:13px 14px 13px 17px;background:#fff;border:1px solid #cce2d1;box-shadow:0 12px 36px #183f2f30;border-radius:16px;display:flex;align-items:center;gap:10px;color:#264d38}.update-banner>div{flex:1;min-width:0}.update-banner strong{display:block;font-size:13px}.update-banner span{display:block;color:#839888;font-size:11px;margin-top:3px}.update-banner .btn{flex-shrink:0;font-size:12px;padding:10px 13px}.update-dismiss{border:0;background:transparent;font-size:22px;color:#85968b;padding:4px 5px;cursor:pointer}@media(max-width:700px){.update-banner{bottom:calc(87px + env(safe-area-inset-bottom))}}
