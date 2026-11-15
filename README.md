@@ -65,3 +65,20 @@ Worker 需要单独配置服务端密钥及最小权限 GitHub Token。仅拥有
 - Service Worker 缓存版本升级为 `stride-shell-v3`，支持新 CSS/JS 缓存
 
 **兼容性**：本次没有更改本地存储键 `stride_fit_v1` 或记录数据结构。AI 密钥尚未配置时，仍可使用本地规则生成计划。
+
+
+## V1.3：AI 服务商自由切换
+
+设置页可选择 **Kimi** 或 **Claude**，选项保存在浏览器本地（`stride_ai_provider`），训练计划和 AI 周总结将使用当前选定服务商。后端 `stride-fitness-api` 通过各自官方 API 调用，不在 GitHub 公库保存密钥。
+
+Cloudflare Worker → Settings → Variables and Secrets：
+- `STRIDE_ACCESS_SECRET`：必需，服务访问口令，两个服务商共用
+- `KIMI_API_KEY`：仅使用 Kimi 时必需
+- `CLAUDE_API_KEY`：仅使用 Claude 时必需
+- `KIMI_MODEL`：可选，默认 `kimi-k2.5`
+- `CLAUDE_MODEL`：可选，默认 `claude-sonnet-4-6`（应按实际可访问型号调整）
+- `KIMI_BASE_URL`：可选，默认 `https://api.moonshot.ai/v1`
+
+只需配置你实际使用的服务商密钥，另一个可以留空。更换 AI 提供商不会修改或清空已有计划及打卡。AI 仍是按需手动触发，没有自动批量调用，也未实现私库自动同步。请注意服务商的使用额度与 API 计费。
+
+参考官方文档：Claude Messages API https://platform.claude.com/docs/en/api/messages ，Moonshot https://platform.moonshot.ai/ 。
