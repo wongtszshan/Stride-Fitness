@@ -3,14 +3,46 @@ const headers={"Access-Control-Allow-Origin":origin,"Access-Control-Allow-Header
 const reply=(obj,status=200)=>new Response(JSON.stringify(obj),{status,headers});
 const validDate=d=>typeof d==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(d);
 function normalizePlan(raw,allowed,sports){if(!raw||!Array.isArray(raw.days))throw Error("模型没有返回计划列表");const types=[...new Set([...sports,"休息"])];const output=[],seen=new Set();for(const e of raw.days){if(!validDate(e.date)||!allowed.has(e.date)||seen.has(e.date))continue;seen.add(e.date);const type=types.includes(e.type)?e.type:(String(e.type||"").trim()==="休息"?"休息":sports[0]),minutes=type==="休息"?0:Math.min(180,Math.max(5,Math.round(Number(e.minutes)||30)));output.push({date:e.date,type,minutes,note:String(e.note||"").slice(0,180)});}if(!output.length)throw Error("返回日期与请求不匹配");return{days:output,summary:String(raw.summary||"").slice(0,500)};}
+
+const SYNC_REPO="wongtszshan/Stride-Fitness-data";
+const SYNC_FILE="fitness.json";
+async function githubFile(env){
+ const response=await fetch("https://api.github.com/repos/"+SYNC_REPO+"/contents/"+SYNC_FILE,{headers:{"Authorization":"Bearer "+env.STRIDE_GITHUB_TOKEN,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","User-Agent":"Stride-Fitness-Sync"},cache:"no-store"});
+ if(!response.ok)throw new Error("GitHub read "+response.status);
+ const content=await response.json();
+ const bytes=Uint8Array.from(atob(content.content.replace(/\s/g,"")),c=>c.charCodeAt(0));
+ return{sha:content.sha,document:JSON.parse(new TextDecoder().decode(bytes))}
+}
+function validFitness(data){
+ return data&&typeof data==="object"&&!Array.isArray(data)&&data.plans&&typeof data.plans==="object"&&!Array.isArray(data.plans)&&data.logs&&typeof data.logs==="object"&&!Array.isArray(data.logs)&&Array.isArray(data.weights)&&typeof data.nickname==="string"&&Object.keys(data.plans).length<3000&&Object.keys(data.logs).length<3000&&data.weights.length<4000;
+}
+async function handleSync(request,env,url){
+ if(!env.STRIDE_GITHUB_TOKEN)return reply({error:"尚未配置 STRIDE_GITHUB_TOKEN，云端同步未启用"},503);
+ if(Number(request.headers.get("content-length"))>450000)return reply({error:"同步数据超过大小限制"},413);
+ let current;try{current=await githubFile(env)}catch(e){return reply({error:"无法读取 GitHub 私库，请确认 Token 的 Contents 读写权限及仓库授权（"+e.message+"）"},502)}
+ if(url.pathname==="/sync/read")return reply({ok:true,sha:current.sha,document:current.document});
+ let payload;try{payload=await request.json()}catch{return reply({error:"JSON 格式错误"},400)}
+ if(typeof payload?.sha!=="string"||payload.sha!==current.sha)return reply({error:"云端数据已被其他设备修改，未覆盖任何数据。请先处理冲突。",code:"CONFLICT",cloud:current.document,sha:current.sha},409);
+ if(!validFitness(payload?.data))return reply({error:"记录格式无效"},400);
+ const doc={schemaVersion:1,revision:(Number(current.document?.revision)||0)+1,updatedAt:new Date().toISOString(),data:payload.data};
+ const binary=new TextEncoder().encode(JSON.stringify(doc,null,2));if(binary.length>310000)return reply({error:"记录过大"},413);
+ let chunk="";for(const b of binary)chunk+=String.fromCharCode(b);
+ const result=await fetch("https://api.github.com/repos/"+SYNC_REPO+"/contents/"+SYNC_FILE,{method:"PUT",headers:{"Authorization":"Bearer "+env.STRIDE_GITHUB_TOKEN,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","User-Agent":"Stride-Fitness-Sync","Content-Type":"application/json"},body:JSON.stringify({message:"sync: update Stride fitness records",sha:current.sha,content:btoa(chunk)})});
+ if(result.status===409||result.status===422)return reply({error:"GitHub 检测到版本冲突，云端未被覆盖",code:"CONFLICT"},409);
+ if(!result.ok)return reply({error:"GitHub 写入失败 HTTP "+result.status},502);
+ const written=await result.json();
+ return reply({ok:true,sha:written.content?.sha,revision:doc.revision,updatedAt:doc.updatedAt});
+}
+
 export default {async fetch(request,env){
  const url=new URL(request.url);if(request.method==="OPTIONS")return new Response(null,{status:204,headers});
  if(request.headers.get("Origin")&&request.headers.get("Origin")!==origin)return reply({error:"Origin not permitted"},403);
  if(url.pathname==="/health"&&request.method==="GET")return reply({ok:true,providers:{kimi:{configured:Boolean(env.KIMI_API_KEY&&env.STRIDE_ACCESS_SECRET),model:env.KIMI_MODEL||"kimi-k2.5"},claude:{configured:Boolean(env.CLAUDE_API_KEY&&env.STRIDE_ACCESS_SECRET),model:env.CLAUDE_MODEL||"claude-sonnet-4-6"}}});
- if(!["/ai","/auth"].includes(url.pathname)||request.method!=="POST")return reply({error:"Not found"},404);
+ if(!["/ai","/auth","/sync/read","/sync/write"].includes(url.pathname)||request.method!=="POST")return reply({error:"Not found"},404);
  if(!env.STRIDE_ACCESS_SECRET)return reply({error:"AI 未配置访问口令 STRIDE_ACCESS_SECRET"},503);
  if(request.headers.get("x-stride-passphrase")!==env.STRIDE_ACCESS_SECRET)return reply({error:"访问口令不正确"},401);
- if(url.pathname==="/auth")return reply({ok:true,providers:{kimi:Boolean(env.KIMI_API_KEY),claude:Boolean(env.CLAUDE_API_KEY)}});
+ if(url.pathname==="/auth")return reply({ok:true,providers:{kimi:Boolean(env.KIMI_API_KEY),claude:Boolean(env.CLAUDE_API_KEY)},syncConfigured:Boolean(env.STRIDE_GITHUB_TOKEN)});
+ if(url.pathname.startsWith("/sync/"))return handleSync(request,env,url);
  if(Number(request.headers.get("content-length"))>45000)return reply({error:"Payload too large"},413);
  let body;try{body=await request.json()}catch{return reply({error:"JSON 无效"},400)}
  const task=body?.task,provider=body?.provider||"kimi";if(!["plan","summary"].includes(task))return reply({error:"Unsupported task"},400);if(!["kimi","claude"].includes(provider))return reply({error:"不支持的 AI 服务商"},400);if(provider==="kimi"&&!env.KIMI_API_KEY)return reply({error:"Kimi 尚未配置 KIMI_API_KEY；可以在设置中选择已配置的 Claude"},503);if(provider==="claude"&&!env.CLAUDE_API_KEY)return reply({error:"Claude 尚未配置 CLAUDE_API_KEY；可以在设置中选择已配置的 Kimi"},503);
