@@ -1,5 +1,5 @@
 {
-  "release": "stride-release-20261115-2",
+  "release": "stride-release-20261115-3",
   "updatedAt": "2026-11-15",
-  "notes": "训练计划运动偏好支持独立多选、自定义运动，AI 严格按所选类型生成。"
+  "notes": "训练目标多选及自由填写，训练周期1-12周，开始日期可自选。"
 }
