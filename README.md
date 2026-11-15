@@ -82,3 +82,16 @@ Cloudflare Worker → Settings → Variables and Secrets：
 只需配置你实际使用的服务商密钥，另一个可以留空。更换 AI 提供商不会修改或清空已有计划及打卡。AI 仍是按需手动触发，没有自动批量调用，也未实现私库自动同步。请注意服务商的使用额度与 API 计费。
 
 参考官方文档：Claude Messages API https://platform.claude.com/docs/en/api/messages ，Moonshot https://platform.moonshot.ai/ 。
+
+
+## V1.7：GitHub 私库自动同步
+
+已加入 Cloudflare Worker 私库接口 `POST /sync/read` 与 `POST /sync/write`，均要求 `x-stride-passphrase`。Worker 访问私库 **需要额外配置** `STRIDE_GITHUB_TOKEN`（Secret），仅允许访问 `wongtszshan/Stride-Fitness-data` 私库的 **Contents: Read and write**。请创建 GitHub Fine-grained PAT，仓库只选择 Stride-Fitness-data，不要使用仓库范围过大的 classic token。设置地址： https://github.com/settings/personal-access-tokens/new 。
+
+Cloudflare → Workers & Pages → stride-fitness-api → Settings → Variables and Secrets → Add → Secret：名称 `STRIDE_GITHUB_TOKEN`，值为上述 GitHub fine-grained token。**绝不要把 token 填在 Stride 网页输入框、聊天内容或公开 GitHub 仓库里。** Cloudflare Worker 上已有的 `CLAUDE_API_KEY`、`KIMI_API_KEY` 与 `STRIDE_ACCESS_SECRET` 无须修改。
+
+首次使用：在 Stride 设置中保存 `STRIDE_ACCESS_SECRET` 值，再点击「连接 / 检查云端」。若私库尚无记录，而本机已有记录，系统会先问是否将本机记录上传；若私库已有数据，先确认是否恢复。连接完成后，保存训练计划、打卡与体重会自动排队上传，也可点击「立即同步」。关闭浏览器或掉线时修改会先保存在本机，下次连接后继续尝试。多人/多设备同时编辑可能发生冲突；冲突时阻止覆盖，并展示警告。提供「从私库恢复」以明确选择云端版本，恢复前可先导出本机 JSON。
+
+同步 JSON 格式保留 `schemaVersion`、`revision`、`updatedAt`、`data`；`data` 包含 `plans`、`logs`、`weights` 和 `nickname`，兼容旧版本。运动/目标偏好目前仍保存在本机；AI Key 和访问口令永远不写入私库。
+
+注意：单一 GitHub 文件的 sha 乐观并发检查可阻止覆盖新版本，但不进行自动字段合并。删除本机数据不会删除私库数据。
