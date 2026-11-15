@@ -94,3 +94,10 @@ header{background:#fff}.brand-mark{width:34px;height:34px;border-radius:11px}.br
 .custom-sport-row button{flex-shrink:0;min-width:78px}
 .sport-help{font-size:11px;color:#91a297;margin:8px 0 0}
 @media(max-width:700px){.sport-choices{gap:7px}.sport-chip{padding:10px 11px;border-radius:11px;font-size:11px}.custom-sport-row input{font-size:12px}.custom-sport-row button{padding:10px 12px}}
+
+/* Custom goals and flexible schedule inputs */
+.goal-picker{margin-top:13px;margin-bottom:18px}.goal-picker>label{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}
+.goal-picker textarea{resize:vertical;min-height:72px;margin-top:3px;line-height:1.6}
+#period,#planStart{height:46px;min-width:0;max-width:100%;background:#fff}
+.goal-picker .sport-choices{margin:8px 0 11px}
+@media(max-width:700px){.goal-picker{margin-top:8px}.goal-picker .sport-choices{gap:7px}#period,#planStart{font-size:16px}}
