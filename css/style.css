@@ -317,3 +317,12 @@ h1,h2,h3{color:#213b34}h1{letter-spacing:-.9px}h2{letter-spacing:-.45px}
 @media(prefers-reduced-motion:reduce){
  .hero,.card,.btn,.sport-chip,.day{transition:none!important}
 }
+
+/* Device session controls: intentional, visible opt-in for persistent sign-in */
+.remember-ai-line{display:flex;align-items:flex-start;gap:11px;max-width:100%;padding:13px 15px;margin:6px 0 15px;border:1px solid #dfece4;border-radius:15px;background:linear-gradient(115deg,#f3faf5,#f5f7fc);cursor:pointer;color:#365d4b}
+.remember-ai-line input[type=checkbox]{width:19px;height:19px;min-width:19px;min-height:19px;margin:2px 0 0;accent-color:#177653;cursor:pointer}
+.remember-ai-line span{display:flex;flex-direction:column;gap:4px;min-width:0;line-height:1.5}
+.remember-ai-line strong{font-size:13px;font-weight:800;color:#225b45}
+.remember-ai-line small{font-size:11px;color:#788b82;font-weight:500;overflow-wrap:anywhere}
+.ai-settings-actions{align-items:stretch}.ai-settings-actions .btn{min-height:43px;white-space:normal}
+@media(max-width:700px){.remember-ai-line{padding:12px;gap:10px}.ai-settings-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.ai-settings-actions .btn{min-width:0;width:100%}.ai-settings-actions .btn:first-child{grid-column:1/-1}}
