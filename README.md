@@ -26,3 +26,29 @@ Worker 需要单独配置服务端密钥及最小权限 GitHub Token。仅拥有
 - Kimi API 接入和 JSON Schema 校验
 - 安全的数据同步状态提示
 - PWA manifest / Service Worker / 应用图标
+
+
+## V1.1 · 桌面图标与 AI（2026-11-15）
+
+图标已提交：`icon.svg`（PWA SVG 图标）、`apple-touch-icon.png`（生成图标的 PNG 小图）。`manifest.webmanifest` 定义 PWA；`sw.js` 提供基础离线静态资源缓存。iPhone 如仍出现旧图标，请从桌面移除快捷方式，重新在 Safari 添加到主屏幕。
+
+### Kimi AI Worker
+
+- 已部署名称：`stride-fitness-api`
+- Worker 地址：`https://stride-fitness-api.wangtszshan.workers.dev`
+- 状态接口：`GET /health`（`configured: true` 才可使用真实 AI）
+- API 接口：`POST /ai`，任务分别为 `plan`、`summary`
+- 源代码：`worker/stride-ai.js`
+
+**需要在 Cloudflare → Workers & Pages → stride-fitness-api → Settings → Variables and Secrets 设置**：
+
+1. `KIMI_API_KEY`：类型 **Secret**，由你在 Kimi 开发平台申请的密钥；不要发到公开仓库
+2. `STRIDE_ACCESS_SECRET`：类型 **Secret**，自定义较长的随机口令；在 Stride App 设置页填写同一口令以启用调用
+3. （可选）`KIMI_MODEL`：默认 `kimi-k2.5`，按 Kimi 平台账户可使用的模型调整
+4. （可选）`KIMI_BASE_URL`：默认 `https://api.moonshot.ai/v1`，如果你的密钥来自中国大陆平台，使用对应的 `https://api.moonshot.cn/v1`
+
+两个必需的 Secret 未配置时，AI 请求会返回 503，并保留本地规则计划生成和总结功能。Kimi API 可能产生费用。
+
+**安全说明**：网站前端不会保存或发送 Kimi API Key，用户的 Worker 访问口令只暂存于当前浏览器 sessionStorage。Worker 强制验证口令并校验请求来源。此个人版未接入多用户账户和正式的 API 速率限制，不适用于公开多人使用。
+
+**目前仍未实现**：GitHub 私库的云端自动同步；体重数据依然仅保存在浏览器本地。
