@@ -7,7 +7,7 @@ function normalizePlan(raw,allowed,sports){if(!raw||!Array.isArray(raw.days))thr
 const SYNC_REPO="wongtszshan/Stride-Fitness-data";
 const SYNC_FILE="fitness.json";
 async function githubFile(env){
- const response=await fetch("https://api.github.com/repos/"+SYNC_REPO+"/contents/"+SYNC_FILE,{headers:{"Authorization":"Bearer "+env.STRIDE_GITHUB_TOKEN,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","User-Agent":"Stride-Fitness-Sync"},cache:"no-store"});
+ const response=await fetch("https://api.github.com/repos/"+SYNC_REPO+"/contents/"+SYNC_FILE,{headers:{"Authorization":"Bearer "+env.STRIDE_GITHUB_TOKEN,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","User-Agent":"Stride-Fitness-Sync"}});
  if(!response.ok){
   const status=response.status;
   const details=status===401?"GitHub Token 无效、已过期，或未获授权":
