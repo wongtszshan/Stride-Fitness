@@ -1,1 +1,22 @@
-const CACHE='stride-shell-v6';const ASSETS=['./','./index.html','./css/style.css?v=20261115-3','./js/app.js?v=1.3','./icon.svg','./apple-touch-icon.png','./manifest.webmanifest'];self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>Promise.allSettled(ASSETS.map(path=>cache.add(path)))));self.skipWaiting()});self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE&&key.startsWith('stride-shell-')).map(key=>caches.delete(key)))));self.clients.claim()});self.addEventListener('fetch',event=>{const req=event.request,url=new URL(req.url);if(req.method!=='GET'||url.origin!==self.location.origin)return;if(req.mode==='navigate'){event.respondWith(fetch(req).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE).then(cache=>cache.put(req,copy))}return res}).catch(()=>caches.match(req).then(res=>res||caches.match('./index.html'))));return}event.respondWith(fetch(req).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE).then(cache=>cache.put(req,copy))}return res}).catch(()=>caches.match(req)))})
+/* Stride PWA: network-first application shell, cache fallback offline */
+const CACHE='stride-shell-v7';
+const ASSETS=['./','./index.html','./css/style.css?v=20261115-4','./js/app.js?v=1.4','./icon.svg','./apple-touch-icon.png','./manifest.webmanifest','./version.json'];
+self.addEventListener('install',event=>{
+  event.waitUntil(caches.open(CACHE).then(async cache=>{
+    await Promise.allSettled(ASSETS.map(path=>cache.add(path)));
+  }));
+  self.skipWaiting();
+});
+self.addEventListener('activate',event=>{
+  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('stride-shell-')&&k!==CACHE).map(k=>caches.delete(k)))));
+  self.clients.claim();
+});
+self.addEventListener('message',event=>{if(event.data&&event.data.type==='SKIP_WAITING')self.skipWaiting()});
+self.addEventListener('fetch',event=>{
+ const req=event.request,url=new URL(req.url);
+ if(req.method!=='GET'||url.origin!==self.location.origin)return;
+ event.respondWith(fetch(req).then(async response=>{
+    if(response.ok){const cache=await caches.open(CACHE);cache.put(req,response.clone()).catch(()=>{});}
+    return response;
+ }).catch(async ()=>await caches.match(req)||((req.mode==='navigate')?await caches.match('./index.html'):Response.error())));
+});
