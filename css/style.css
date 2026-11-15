@@ -138,3 +138,12 @@ header{background:#fff}.brand-mark{width:34px;height:34px;border-radius:11px}.br
  #planner .planner-title{gap:8px}
  #planner .planner-art{width:42px;height:42px;flex-shrink:0}
 }
+
+/* Date control rebuilt using three bounded selects to avoid iOS WebKit intrinsic date-input width bugs. */
+#planner .start-date-field{min-width:0;max-width:100%;overflow:hidden}
+#planner .date-selects{display:grid;grid-template-columns:minmax(0,1.28fr) minmax(0,1fr) minmax(0,1fr);gap:7px;min-width:0;width:100%;max-width:100%;align-items:stretch}
+#planner .date-selects select{display:block;width:100%;min-width:0;max-width:100%;height:46px;min-height:46px;padding:8px 9px;border:1px solid #dbe5dc;border-radius:11px;background-color:#fff;color:var(--dark);font-size:15px;box-sizing:border-box;text-overflow:ellipsis}
+#planner .date-selects select:focus-visible{outline:3px solid #99cab1;outline-offset:1px}
+#planner input[type=hidden]#planStart{display:none}
+@media(max-width:700px){#planner .date-selects{gap:6px}#planner .date-selects select{font-size:16px;padding:8px 7px}}
+@media(max-width:350px){#planner .date-selects{gap:4px}#planner .date-selects select{padding-inline:5px}}
