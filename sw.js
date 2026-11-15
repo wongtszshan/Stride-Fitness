@@ -1,6 +1,6 @@
 /* Stride PWA: network-first application shell, cache fallback offline */
-const CACHE='stride-shell-v12';
-const ASSETS=['./','./index.html','./css/style.css?v=20261115-8','./js/app.js?v=1.6.1','./icon.svg','./apple-touch-icon.png','./manifest.webmanifest','./version.json'];
+const CACHE='stride-shell-v13';
+const ASSETS=['./','./index.html','./css/style.css?v=20261115-8','./js/app.js?v=1.6.2','./icon.svg','./apple-touch-icon.png','./manifest.webmanifest','./version.json'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(async cache=>{
     await Promise.allSettled(ASSETS.map(path=>cache.add(path)));
