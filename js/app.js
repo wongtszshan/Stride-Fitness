@@ -105,39 +105,64 @@ $('aiAccess').value=aiPass();$('aiProvider').value=aiProvider();changeAIProvider
 
 
 
-/* Non-destructive PWA update manager (never clears localStorage). */
-const STRIDE_RELEASE='stride-release-20261115-1';
-let strideRemoteRelease=STRIDE_RELEASE;
-let strideUpgradeDismissed='';
-let strideUpdateWorking=false;
-function showStrideUpdate(release){strideRemoteRelease=release;if(release===strideUpgradeDismissed)return;document.getElementById('updateBanner')?.classList.remove('hide')}
-function dismissStrideUpdate(){strideUpgradeDismissed=strideRemoteRelease;document.getElementById('updateBanner')?.classList.add('hide')}
+/* PWA update manager: compare actual deployed asset URLs with loaded ones.
+   No manually synchronized release IDs; never erase localStorage. */
+let strideUpgradeDismissed='',strideUpdateWorking=false;
+const strideAssetRefs=(html)=>{
+  const styles=[...html.matchAll(/href=["']([^"']*css\/style\.css[^"']*)["']/g)].map(x=>x[1]);
+  const scripts=[...html.matchAll(/src=["']([^"']*js\/app\.js[^"']*)["']/g)].map(x=>x[1]);
+  return [...styles,...scripts].join('|');
+};
+const strideCurrentAssetRefs=()=>{
+ const style=document.querySelector('link[rel="stylesheet"][href*="css/style.css"]');
+ const script=document.querySelector('script[src*="js/app.js"]');
+ return [(style?.getAttribute('href')||''),(script?.getAttribute('src')||'')].join('|');
+};
+let strideRemoteAssets=strideCurrentAssetRefs();
+function showStrideUpdate(refs){
+ strideRemoteAssets=refs;if(refs===strideUpgradeDismissed)return;
+ document.getElementById('updateBanner')?.classList.remove('hide');
+}
+function dismissStrideUpdate(){
+ strideUpgradeDismissed=strideRemoteAssets;document.getElementById('updateBanner')?.classList.add('hide');
+}
+async function fetchDeployedAssetRefs(){
+ const response=await fetch('./index.html?stride_check='+Date.now(),{cache:'no-store'});
+ if(!response.ok)throw Error('Cannot check latest version');
+ return strideAssetRefs(await response.text());
+}
 async function checkStrideUpdates(){
-  if(!navigator.onLine)return;
-  try{
-    const response=await fetch('./version.json?ts='+Date.now(),{cache:'no-store'});
-    if(!response.ok)return;
-    const payload=await response.json();
-    if(typeof payload.release==='string'&&payload.release!==STRIDE_RELEASE)showStrideUpdate(payload.release);
-    if('serviceWorker' in navigator){
-      const registration=await navigator.serviceWorker.getRegistration('./');
-      if(registration)registration.update().catch(()=>{});
-    }
-  }catch{}
+ if(!navigator.onLine||strideUpdateWorking)return;
+ try{
+  const remote=await fetchDeployedAssetRefs(),current=strideCurrentAssetRefs();
+  if(!remote||!current)return;
+  if(remote!==current)showStrideUpdate(remote);
+  else {strideUpgradeDismissed='';document.getElementById('updateBanner')?.classList.add('hide');}
+  if('serviceWorker' in navigator){
+   const registration=await navigator.serviceWorker.getRegistration('./');
+   if(registration)registration.update().catch(()=>{});
+  }
+ }catch{}
 }
 async function applyStrideUpdate(){
-  if(strideUpdateWorking)return;strideUpdateWorking=true;
-  try{
-    if('serviceWorker' in navigator){
-      const registration=await navigator.serviceWorker.getRegistration('./');
-      if(registration){await registration.update(); if(registration.waiting)registration.waiting.postMessage({type:'SKIP_WAITING'});}
-    }
-    const target=new URL(location.href);
-    target.searchParams.set('updated',String(Date.now()));
-    location.replace(target.toString());
-  }catch(e){strideUpdateWorking=false;toast('暂时无法更新，请检查网络后重试')}
+ if(strideUpdateWorking)return;
+ strideUpdateWorking=true;
+ const b=document.querySelector('#updateBanner button.btn');
+ if(b){b.disabled=true;b.textContent='更新中…';}
+ try{
+  if('serviceWorker' in navigator){
+   const registration=await navigator.serviceWorker.getRegistration('./');
+   if(registration){await registration.update();if(registration.waiting)registration.waiting.postMessage({type:'SKIP_WAITING'});}
+  }
+  const target=new URL(location.href);target.searchParams.set('stride_refresh',String(Date.now()));
+  location.replace(target.toString());
+ }catch(e){
+  strideUpdateWorking=false;
+  if(b){b.disabled=false;b.textContent='更新应用';}
+  toast('更新暂时失败，请检查网络后重试');
+ }
 }
-window.addEventListener('pageshow',()=>{setTimeout(checkStrideUpdates,1200)});
+window.addEventListener('pageshow',()=>setTimeout(checkStrideUpdates,1200));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkStrideUpdates()});
 window.addEventListener('online',checkStrideUpdates);
 setInterval(()=>{if(document.visibilityState==='visible')checkStrideUpdates()},15*60*1000);
