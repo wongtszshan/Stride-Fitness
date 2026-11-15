@@ -133,13 +133,30 @@ const aiProvider=()=>localStorage.getItem('stride_ai_provider')==='claude'?'clau
 const aiProviderLabel=()=>aiProvider()==='claude'?'Claude':'Kimi';
 function changeAIProvider(){const v=$('aiProvider').value;localStorage.setItem('stride_ai_provider',v);$('aiProviderNote').textContent='当前使用 '+(v==='claude'?'Claude (Anthropic Messages API)':'Kimi (Moonshot Chat Completions API)')+'。更换服务商不会删除训练数据。';$('aiStatusText').textContent='已切换服务商，请检测连接';}
 
-const aiPass=()=>sessionStorage.getItem('stride_ai_access')||'';
+const STRIDE_PASS_KEY='stride_ai_saved_access_v1';
+const aiPass=()=>sessionStorage.getItem('stride_ai_access')||localStorage.getItem(STRIDE_PASS_KEY)||'';
 function saveAISettings(){
- const input=$('aiAccess').value,pass=input.trim();
- if(!pass)return toast('请输入 Worker 的 STRIDE_ACCESS_SECRET，不是 AI API Key');
+ const pass=$('aiAccess').value.trim();
+ if(!pass)return toast('请输入 Worker 的 STRIDE_ACCESS_SECRET，而不是 AI API Key');
+ const remembered=$('rememberAI').checked;
  sessionStorage.setItem('stride_ai_access',pass);
- $('aiStatusText').textContent='已保存口令，但还未验证。请点击「检测 AI 连接」。';
- toast('访问口令已保存，接下来请检测连接');
+ if(remembered)localStorage.setItem(STRIDE_PASS_KEY,pass);
+ else localStorage.removeItem(STRIDE_PASS_KEY);
+ $('aiStatusText').textContent=remembered?'访问口令已保存在此设备，正在验证连接…':'仅在当前会话保存口令，正在验证连接…';
+ toast(remembered?'已记住此设备，关闭 App 后仍可自动连接':'仅本次会话保存，关闭 App 后可能需要重新输入');
+ void checkAI();
+ if(syncEnabled){syncError=false;void syncFitnessNow()}
+}
+function forgetAISettings(){
+ if(!confirm('清除这个设备上的访问口令并暂停自动连接？不会删除健身记录或 GitHub 私库数据。'))return;
+ sessionStorage.removeItem('stride_ai_access');
+ localStorage.removeItem(STRIDE_PASS_KEY);
+ $('aiAccess').value='';
+ $('rememberAI').checked=false;
+ syncError=false;
+ $('aiStatusText').textContent='已清除本设备访问口令。AI 与私库同步暂停，记录仍安全保存在本机。';
+ updateSyncUI('warning','等待重新授权','本设备未保存访问口令。再次使用时请重新输入。');
+ toast('本设备口令已清除');
 }
 async function checkAI(){
  const b=$('aiCheckButton');b.disabled=true;b.textContent='检测中…';
@@ -162,7 +179,7 @@ const response=await callStrideAI({task:'plan',dates,profile:{goal:goals.join('�
 async function generateAIReport(){const btn=$('aiReportButton');btn.disabled=true;btn.textContent='✦ 正在分析…';try{const w=weekData(),weights=data.weights.filter(x=>x.date>=w.start&&x.date<=w.end);const recent=Object.entries(data.logs).filter(([d])=>d>=w.start&&d<=w.end).map(([date,l])=>({date,status:l.status,minutes:l.minutes,type:data.plans[date]?.type||'自主训练'}));const x=await callStrideAI({task:'summary',metrics:{weekStart:w.start,weekEnd:w.end,planned:w.planned.length,completedPlanned:w.donePlans.length,completedTotal:w.entries.length,trainingMinutes:w.minutes,recent,weights}});$('aiReportText').textContent=x.text||'无内容';$('aiReportOutput').classList.remove('hide');toast('AI 周总结已生成')}catch(e){toast(e.message);alert('AI 总结未完成：'+e.message)}finally{btn.disabled=false;btn.textContent='✦ AI 周总结'}}
 drawSports();setupPlanStartDate();$('customGoal').value=goalPrefs.custom;drawGoals();$('customGoal').addEventListener('input',persistGoalPrefs);$('customSportInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCustomSport()}});
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(reg=>reg.update().catch(()=>{})).catch(()=>{}))}
-$('aiAccess').value=aiPass();$('aiProvider').value=aiProvider();changeAIProvider();
+$('aiAccess').value=aiPass();$('rememberAI').checked=!!localStorage.getItem(STRIDE_PASS_KEY);$('aiProvider').value=aiProvider();changeAIProvider();
 
 
 
@@ -347,6 +364,9 @@ async function restoreFitnessCloud(){
 }
 window.addEventListener('online',()=>{if(syncEnabled){syncError=false;syncFitnessNow()}});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&syncEnabled&&!syncBusy){syncError=false;syncFitnessNow()}});
-window.addEventListener('pageshow',()=>{if(syncEnabled&&aiPass())setTimeout(()=>void syncFitnessNow(),1600)});
-if(syncEnabled){updateSyncUI('warning','等待检查私库','将检查 GitHub 最新记录；若有冲突不会自动覆盖。')}
+window.addEventListener('pageshow',()=>{
+ if(syncEnabled&&aiPass())setTimeout(()=>void syncFitnessNow(),1200);
+ else if(syncEnabled&&!aiPass())updateSyncUI('warning','等待本机授权','同步已经启用，但此设备没有保存访问口令。开启「记住此设备」可以免去每次输入。');
+});
+if(syncEnabled){updateSyncUI('warning',aiPass()?'正在恢复云端连接':'等待本机授权',aiPass()?'无需手动连接；启动后将自动检查私库最新版本。':'请选择「记住此设备」后保存口令，才能在重新打开 App 时自动连接。')}
 else{updateSyncUI('idle','尚未连接私库','请先配置 STRIDE_GITHUB_TOKEN，然后点击「连接 / 检查云端」。')}
