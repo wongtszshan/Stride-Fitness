@@ -73,3 +73,6 @@ header{background:#fff}.brand-mark{width:34px;height:34px;border-radius:11px}.br
 .stats-metrics{gap:9px}.stat-card{padding:16px}.settings-hero{padding:18px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.page.active{animation:none}button,.card,.stat-card,.day{transition:none!important}}
+
+/* Mobile layout fix: decorative sparkle must never overlap hero heading. */
+@media(max-width:800px){.hero:before{display:none!important;content:none!important}}
