@@ -1,5 +1,5 @@
 {
-  "release": "stride-release-20261115-1",
+  "release": "stride-release-20261115-2",
   "updatedAt": "2026-11-15",
-  "notes": "PWA 应用内更新提示；无需删除桌面图标"
+  "notes": "训练计划运动偏好支持独立多选、自定义运动，AI 严格按所选类型生成。"
 }
