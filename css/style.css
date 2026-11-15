@@ -101,3 +101,40 @@ header{background:#fff}.brand-mark{width:34px;height:34px;border-radius:11px}.br
 #period,#planStart{height:46px;min-width:0;max-width:100%;background:#fff}
 .goal-picker .sport-choices{margin:8px 0 11px}
 @media(max-width:700px){.goal-picker{margin-top:8px}.goal-picker .sport-choices{gap:7px}#period,#planStart{font-size:16px}}
+
+
+/* Stride planner responsive form audit — no intrinsic-width overflow */
+#planner, #planner .planner-card, #planner .twocol, #planner .twocol>.field,
+#planner .goal-picker, #planner .sports-picker, #planner .custom-sport-row,
+#planner .plan-button-row, #planner .field, #planner .notice {min-width:0;max-width:100%}
+#planner .twocol {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:14px 18px}
+#planner .twocol>.field {margin:0;min-width:0}
+#planner .twocol input, #planner .twocol select,
+#planner .twocol textarea, #planner .field>textarea,
+#planner .custom-sport-row input {display:block;box-sizing:border-box;inline-size:100%;min-inline-size:0;max-inline-size:100%;width:100%;min-width:0}
+#planner #planStart {appearance:auto;-webkit-appearance:auto;min-width:0;width:100%;overflow:hidden;padding-inline:10px;line-height:normal}
+#planner #planStart::-webkit-datetime-edit {padding:0;min-width:0;max-width:100%;overflow:hidden}
+#planner #planStart::-webkit-date-and-time-value {min-width:0;text-align:left}
+#planner #planStart::-webkit-calendar-picker-indicator {flex-shrink:0;margin-inline-start:auto;max-width:22px}
+#planner .twocol .sport-help {display:block;overflow-wrap:anywhere;line-height:1.5;margin-top:2px}
+#planner .plan-button-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+#planner .plan-button-row .btn {width:100%;min-width:0;white-space:normal;line-height:1.35}
+#planner .custom-sport-row{width:100%;min-width:0}
+#planner .custom-sport-row input{flex:1 1 0%;min-width:0;width:0}
+#planner .custom-sport-row button{flex:0 0 auto}
+#planner .planner-title>div:first-child {min-width:0}
+#planner .planner-title h1,#planner .planner-title p {overflow-wrap:break-word}
+@media(max-width:700px){
+ #planner .twocol {grid-template-columns:minmax(0,1fr);gap:12px}
+ #planner .twocol>.field {width:100%}
+ #planner .plan-button-row {grid-template-columns:minmax(0,1fr)}
+ #planner .plan-button-row .btn {min-height:46px}
+ #planner .planner-card {padding-inline:16px;overflow:hidden}
+ #planner #planStart {font-size:16px;min-height:46px}
+ #planner .custom-sport-row button{padding-inline:11px;min-width:72px}
+}
+@media(max-width:350px){
+ #planner .planner-card {padding-inline:13px}
+ #planner .planner-title{gap:8px}
+ #planner .planner-art{width:42px;height:42px;flex-shrink:0}
+}
