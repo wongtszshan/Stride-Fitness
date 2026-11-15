@@ -8,7 +8,15 @@ const SYNC_REPO="wongtszshan/Stride-Fitness-data";
 const SYNC_FILE="fitness.json";
 async function githubFile(env){
  const response=await fetch("https://api.github.com/repos/"+SYNC_REPO+"/contents/"+SYNC_FILE,{headers:{"Authorization":"Bearer "+env.STRIDE_GITHUB_TOKEN,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","User-Agent":"Stride-Fitness-Sync"},cache:"no-store"});
- if(!response.ok)throw new Error("GitHub read "+response.status);
+ if(!response.ok){
+  const status=response.status;
+  const details=status===401?"GitHub Token 无效、已过期，或未获授权":
+    status===403?"GitHub 拒绝访问：可能是 Token 权限不足、访问限制或额度限制":
+    status===404?"GitHub 找不到此仓库或文件：常见原因是 Fine-grained Token 未授权访问 Stride-Fitness-data 私库":
+    status===429?"GitHub 请求暂时受限，请稍后重试":
+    "GitHub 返回 HTTP "+status;
+  throw new Error(details+" (HTTP "+status+")");
+ }
  const content=await response.json();
  const bytes=Uint8Array.from(atob(content.content.replace(/\s/g,"")),c=>c.charCodeAt(0));
  return{sha:content.sha,document:JSON.parse(new TextDecoder().decode(bytes))}
@@ -19,7 +27,7 @@ function validFitness(data){
 async function handleSync(request,env,url){
  if(!env.STRIDE_GITHUB_TOKEN)return reply({error:"尚未配置 STRIDE_GITHUB_TOKEN，云端同步未启用"},503);
  if(Number(request.headers.get("content-length"))>450000)return reply({error:"同步数据超过大小限制"},413);
- let current;try{current=await githubFile(env)}catch(e){return reply({error:"无法读取 GitHub 私库，请确认 Token 的 Contents 读写权限及仓库授权（"+e.message+"）"},502)}
+ let current;try{current=await githubFile(env)}catch(e){return reply({error:"私库读取失败："+e.message+"。请检查 GitHub Fine-grained Token 的仓库选择和 Contents 权限。",code:"GITHUB_READ_FAILED"},502)}
  if(url.pathname==="/sync/read")return reply({ok:true,sha:current.sha,document:current.document});
  let payload;try{payload=await request.json()}catch{return reply({error:"JSON 格式错误"},400)}
  if(typeof payload?.sha!=="string"||payload.sha!==current.sha)return reply({error:"云端数据已被其他设备修改，未覆盖任何数据。请先处理冲突。",code:"CONFLICT",cloud:current.document,sha:current.sha},409);
