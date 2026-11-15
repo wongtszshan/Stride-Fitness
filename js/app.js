@@ -1,3 +1,30 @@
+/* iOS-safe, three-select date entry. Hidden ISO date keeps existing plan logic unchanged. */
+function setupPlanStartDate(){
+ const current=today(),year=Number(current.slice(0,4));
+ const y=$('planYear'),m=$('planMonth'),d=$('planDay');
+ y.replaceChildren();m.replaceChildren();d.replaceChildren();
+ const addOption=(select,value,text)=>{const opt=document.createElement('option');opt.value=String(value);opt.textContent=text;select.appendChild(opt)};
+ for(let i=year;i<=year+20;i++)addOption(y,i,i+' 年');
+ for(let i=1;i<=12;i++)addOption(m,i,i+' 月');
+ y.value=String(year);m.value=String(Number(current.slice(5,7)));
+ fillPlanDays(Number(current.slice(8,10)));
+ updatePlanStartDate();
+}
+function fillPlanDays(requested){
+ const y=Number($('planYear').value),m=Number($('planMonth').value),d=$('planDay');
+ const max=new Date(y,m,0).getDate(),old=requested||Number(d.value)||1;
+ d.replaceChildren();
+ for(let n=1;n<=max;n++){const option=document.createElement('option');option.value=String(n);option.textContent=n+' 日';d.appendChild(option)}
+ d.value=String(Math.min(max,Math.max(1,old)));
+}
+function updatePlanStartDate(){
+ const y=$('planYear'),m=$('planMonth'),d=$('planDay');if(!y||!m||!d||!y.value||!m.value)return;
+ const days=new Date(Number(y.value),Number(m.value),0).getDate();
+ if(d.options.length!==days)fillPlanDays(Number(d.value));
+ const isoDate=[y.value,m.value.padStart(2,'0'),String(d.value||1).padStart(2,'0')].join('-');
+ $('planStart').value=isoDate;
+}
+
 
 const STRIDE_GOALS_KEY='stride_training_goals_v1';
 const STRIDE_GOALS_DEFAULT=['减脂塑形','增强体能','提升力量','建立运动习惯','提高柔韧性','减压放松','改善睡眠','运动表现'];
@@ -114,7 +141,7 @@ async function generateAIPlan(){const sports=ensureSports(),cfg=getPlanInputs();
 const history=Object.entries(data.logs).sort((a,b)=>a[0].localeCompare(b[0])).slice(-28).map(([date,l])=>({date,status:l.status,minutes:l.minutes,exercise:data.plans[date]?.type||'自主训练'}));
 const response=await callStrideAI({task:'plan',dates,profile:{goal:goals.join('；'),frequency,duration:minutes,sports,notes:$('ainotes').value,history}});if(!Array.isArray(response.days)||!response.days.length)throw Error('AI 未返回有效计划');pending=response.days;$('previewitems').innerHTML='<div class="notice" style="margin-bottom:12px">✦ ' + aiProviderLabel() + ' AI 建议：'+esc(response.summary||'请根据身体状态调整训练')+'</div>'+pending.map(p=>'<div class="preview-row"><span class="preview-date">'+esc(p.date.slice(5))+'</span><span class="preview-name">'+esc(p.type)+(p.minutes?' · '+p.minutes+' 分':'')+'</span><span class="preview-note">'+esc(p.note||'')+'</span></div>').join('');$('planpreview').classList.remove('hide');$('planpreview').scrollIntoView({behavior:'smooth',block:'start'});toast('AI 计划已生成，请预览后再确认')}catch(e){toast(e.message);alert('AI 暂时无法生成计划：'+e.message+'\n你仍可使用本地规则生成功能。')}finally{btn.disabled=false;btn.textContent='✦ AI 生成计划'}}
 async function generateAIReport(){const btn=$('aiReportButton');btn.disabled=true;btn.textContent='✦ 正在分析…';try{const w=weekData(),weights=data.weights.filter(x=>x.date>=w.start&&x.date<=w.end);const recent=Object.entries(data.logs).filter(([d])=>d>=w.start&&d<=w.end).map(([date,l])=>({date,status:l.status,minutes:l.minutes,type:data.plans[date]?.type||'自主训练'}));const x=await callStrideAI({task:'summary',metrics:{weekStart:w.start,weekEnd:w.end,planned:w.planned.length,completedPlanned:w.donePlans.length,completedTotal:w.entries.length,trainingMinutes:w.minutes,recent,weights}});$('aiReportText').textContent=x.text||'无内容';$('aiReportOutput').classList.remove('hide');toast('AI 周总结已生成')}catch(e){toast(e.message);alert('AI 总结未完成：'+e.message)}finally{btn.disabled=false;btn.textContent='✦ AI 周总结'}}
-drawSports();$('planStart').value=today();$('customGoal').value=goalPrefs.custom;drawGoals();$('customGoal').addEventListener('input',persistGoalPrefs);$('customSportInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCustomSport()}});
+drawSports();setupPlanStartDate();$('customGoal').value=goalPrefs.custom;drawGoals();$('customGoal').addEventListener('input',persistGoalPrefs);$('customSportInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCustomSport()}});
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(reg=>reg.update().catch(()=>{})).catch(()=>{}))}
 $('aiAccess').value=aiPass();$('aiProvider').value=aiProvider();changeAIProvider();
 
