@@ -134,9 +134,28 @@ const aiProviderLabel=()=>aiProvider()==='claude'?'Claude':'Kimi';
 function changeAIProvider(){const v=$('aiProvider').value;localStorage.setItem('stride_ai_provider',v);$('aiProviderNote').textContent='当前使用 '+(v==='claude'?'Claude (Anthropic Messages API)':'Kimi (Moonshot Chat Completions API)')+'。更换服务商不会删除训练数据。';$('aiStatusText').textContent='已切换服务商，请检测连接';}
 
 const aiPass=()=>sessionStorage.getItem('stride_ai_access')||'';
-function saveAISettings(){const x=$('aiAccess').value.trim();if(!x)return toast('请输入 Worker 访问口令');sessionStorage.setItem('stride_ai_access',x);toast('口令仅保存于本次浏览器会话')}
-async function checkAI(){const b=$('aiCheckButton');b.disabled=true;b.textContent='检测中…';try{const r=await fetch(STRIDE_AI_ENDPOINT+'/health');const x=await r.json(),p=x.providers?.[aiProvider()];$('aiStatusText').textContent=!p?'AI 服务暂不可用':p.configured?'已配置 ✓ '+aiProviderLabel()+' · '+p.model:'尚未配置 '+aiProviderLabel()+' 所需的 Cloudflare Secret 或访问口令';}catch(e){$('aiStatusText').textContent='连接失败：'+e.message}finally{b.disabled=false;b.textContent='检测 AI 连接'}}
-async function callStrideAI(payload){const pass=aiPass();if(!pass)throw Error('请先前往「设置」保存 Stride AI 访问口令');const r=await fetch(STRIDE_AI_ENDPOINT+'/ai',{method:'POST',headers:{'Content-Type':'application/json','x-stride-passphrase':pass},body:JSON.stringify({...payload,provider:aiProvider()})});let x=await r.json();if(!r.ok)throw Error(x.error||'AI 请求失败');return x}
+function saveAISettings(){
+ const input=$('aiAccess').value,pass=input.trim();
+ if(!pass)return toast('请输入 Worker 的 STRIDE_ACCESS_SECRET，不是 AI API Key');
+ sessionStorage.setItem('stride_ai_access',pass);
+ $('aiStatusText').textContent='已保存口令，但还未验证。请点击「检测 AI 连接」。';
+ toast('访问口令已保存，接下来请检测连接');
+}
+async function checkAI(){
+ const b=$('aiCheckButton');b.disabled=true;b.textContent='检测中…';
+ const status=$('aiStatusText');
+ try{
+  const pass=aiPass();
+  if(!pass){status.textContent='尚未保存访问口令。请填写 STRIDE_ACCESS_SECRET 并点击「保存会话口令」。';return}
+  const res=await fetch(STRIDE_AI_ENDPOINT+'/auth',{method:'POST',headers:{'x-stride-passphrase':pass,'Content-Type':'application/json'},body:'{}',cache:'no-store'});
+  const x=await res.json();
+  if(!res.ok){status.textContent=res.status===401?'访问口令不匹配。请确认 Cloudflare 的 STRIDE_ACCESS_SECRET 与这里输入的内容完全一致，重新保存后重试。':(x.error||'连接检测失败');return}
+  if(!x.providers?.[aiProvider()]){status.textContent='访问口令正确 ✓，但 '+aiProviderLabel()+' 的 API Key 尚未配置。';return}
+  status.textContent='访问口令验证成功 ✓ · '+aiProviderLabel()+' 已配置。可以尝试生成 AI 计划（可能产生 API 费用）。';
+ }catch(e){status.textContent='网络或连接错误：'+e.message}
+ finally{b.disabled=false;b.textContent='检测 AI 连接'}
+}
+async function callStrideAI(payload){const pass=aiPass();if(!pass)throw Error('请先前往「设置」保存 Stride AI 访问口令');const r=await fetch(STRIDE_AI_ENDPOINT+'/ai',{method:'POST',headers:{'Content-Type':'application/json','x-stride-passphrase':pass},body:JSON.stringify({...payload,provider:aiProvider()})});let x=await r.json();if(!r.ok)throw Error(r.status===401?'访问口令不匹配。请前往「设置」重新填写 STRIDE_ACCESS_SECRET，保存后检测连接。':(x.error||'AI 请求失败'));return x}
 async function generateAIPlan(){const sports=ensureSports(),cfg=getPlanInputs();if(!sports||!cfg)return;const btn=$('aiPlanButton');btn.disabled=true;btn.textContent='✦ AI 正在制定…';try{const {weeks,start,frequency,minutes,goals}=cfg,dates=[];for(let i=0;i<weeks*7;i++)dates.push(add(start,i));
 const history=Object.entries(data.logs).sort((a,b)=>a[0].localeCompare(b[0])).slice(-28).map(([date,l])=>({date,status:l.status,minutes:l.minutes,exercise:data.plans[date]?.type||'自主训练'}));
 const response=await callStrideAI({task:'plan',dates,profile:{goal:goals.join('；'),frequency,duration:minutes,sports,notes:$('ainotes').value,history}});if(!Array.isArray(response.days)||!response.days.length)throw Error('AI 未返回有效计划');pending=response.days;$('previewitems').innerHTML='<div class="notice" style="margin-bottom:12px">✦ ' + aiProviderLabel() + ' AI 建议：'+esc(response.summary||'请根据身体状态调整训练')+'</div>'+pending.map(p=>'<div class="preview-row"><span class="preview-date">'+esc(p.date.slice(5))+'</span><span class="preview-name">'+esc(p.type)+(p.minutes?' · '+p.minutes+' 分':'')+'</span><span class="preview-note">'+esc(p.note||'')+'</span></div>').join('');$('planpreview').classList.remove('hide');$('planpreview').scrollIntoView({behavior:'smooth',block:'start'});toast('AI 计划已生成，请预览后再确认')}catch(e){toast(e.message);alert('AI 暂时无法生成计划：'+e.message+'\n你仍可使用本地规则生成功能。')}finally{btn.disabled=false;btn.textContent='✦ AI 生成计划'}}
