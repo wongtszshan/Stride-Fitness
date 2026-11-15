@@ -22,7 +22,7 @@ export default {async fetch(request,env){
    if(provider==="claude"){
      upstream=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"x-api-key":env.CLAUDE_API_KEY,"anthropic-version":"2023-06-01","Content-Type":"application/json"},body:JSON.stringify({model:env.CLAUDE_MODEL||"claude-sonnet-4-6",system,messages:[{role:"user",content:prompt}],max_tokens:task==="plan"?4096:1600}),signal:AbortSignal.timeout(55000)});
    }else{
-     const endpoint=(env.KIMI_BASE_URL||"https://api.moonshot.ai/v1").replace(/\\/$/,"")+"/chat/completions";
+     const endpoint=(env.KIMI_BASE_URL||"https://api.moonshot.ai/v1").replace(/[/]$/,"")+"/chat/completions";
      upstream=await fetch(endpoint,{method:"POST",headers:{"Authorization":"Bearer "+env.KIMI_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({model:env.KIMI_MODEL||"kimi-k2.5",messages:[{role:"system",content:system},{role:"user",content:prompt}],max_tokens:task==="plan"?4096:1600}),signal:AbortSignal.timeout(55000)});
    }
  }catch{return reply({error:(provider==="claude"?"Claude":"Kimi")+" 服务暂时无法连接"},502)}
